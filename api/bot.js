@@ -243,28 +243,43 @@ export default async function handler(req, res) {
           userState[chatId] = null;
         }else if (userState[chatId] === 'preguntando') {
           const searchTerm = messageText;    
+          
+          // Validar que el usuario haya escrito algo
           if (!searchTerm || searchTerm.trim().length === 0) {
             await telegramBot.sendMessage(chatId, 'Por favor, escribe tu pregunta.');
             return; 
           }
-          if (searchTerm) {
+        
+          try {
             const response = await generateResponse(searchTerm);
+            
+            if (!response || response === 'Lo siento, no pude generar una respuesta.') {
+              await telegramBot.sendMessage(chatId, 'Lo siento, no encontré una respuesta para tu pregunta.');
+              userState[chatId] = null; 
+              return;
+            }
+        
             await telegramBot.sendMessage(chatId, response);
-    
+        
             const newPreguntaFrecuente = new PreguntaFrecuente({
               pregunta: searchTerm,
               respuesta: response,
             });
-    
+        
             try {
               await newPreguntaFrecuente.save();
+              console.log('Pregunta frecuente guardada:', searchTerm);
             } catch (error) {
               console.error('Error al guardar pregunta frecuente:', error);
             }
-    
+        
             sendFeedback(chatId);
-            userState[chatId] = null;
+          } catch (error) {
+            console.error('Error al procesar pregunta con Cohere:', error);
+            await telegramBot.sendMessage(chatId, 'Lo siento, hubo un error al procesar tu pregunta.');
           }
+        
+          userState[chatId] = null;
         }else if (userState[chatId] === 'añadiendo_receta') {
           const nombre = message.text.trim();
           userState[chatId] = 'esperando_ingredientes';
