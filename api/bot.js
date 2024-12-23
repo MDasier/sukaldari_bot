@@ -209,6 +209,7 @@ export default async function handler(req, res) {
           one_time_keyboard: true,
         },
       });
+
       userState[chatId] = null;
     }
 
@@ -216,14 +217,12 @@ export default async function handler(req, res) {
       const nombre = message.text.trim();
       userState[chatId] = 'esperando_ingredientes';
       await telegramBot.sendMessage(chatId, '¿Cuáles son los ingredientes? (Separados por comas)');
-      userState[chatId] = 'esperando_ingredientes';
     }
 
     if (userState[chatId] === 'esperando_ingredientes') {
       const ingredientes = message.text.split(',').map(i => i.trim());
       userState[chatId] = 'esperando_instrucciones';
       await telegramBot.sendMessage(chatId, 'Escribe las instrucciones de la receta.');
-      userState[chatId] = 'esperando_instrucciones';
     }
 
     if (userState[chatId] === 'esperando_instrucciones') {
