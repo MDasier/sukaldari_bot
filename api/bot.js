@@ -3,14 +3,12 @@ import { TelegramBot } from 'node-telegram-bot-api';
 import mongoose from 'mongoose';
 import { CohereClient } from 'cohere-ai';
 
-config(); // Cargar las variables de entorno desde .env
-
-// Conectar a MongoDB
+config();
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Conectado a MongoDB'))
   .catch(err => console.error('Error al conectar a MongoDB:', err));
 
-// Crear esquema de receta en MongoDB
+
 const { Schema } = mongoose;
 const recetaSchema = new Schema({
   nombre: { type: String, required: true },
@@ -19,29 +17,24 @@ const recetaSchema = new Schema({
 });
 const Receta = mongoose.model('Receta', recetaSchema);
 
-// Crear esquema de usuario con favoritos
 const usuarioSchema = new Schema({
   userId: { type: Number, required: true, unique: true },
   favoritos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Receta' }],
 });
 const Usuario = mongoose.model('Usuario', usuarioSchema);
 
-// Configuración del bot de Telegram
 const telegramBot = new TelegramBot(process.env.TELEGRAM_API_KEY, { polling: false });
 
-// Configuración de Cohere
 const cohere = new CohereClient({
   token: process.env.COHERE_API_KEY,
 });
 
-// Función para verificar si el usuario es administrador
 const isAdmin = (msg) => msg.from.id === parseInt(process.env.ADMIN_ID);
 
-// Función para interactuar con Cohere
 async function generateResponse(question) {
   try {
     const response = await cohere.generate({
-      model: 'command', // Puedes elegir el modelo que más te convenga
+      model: 'command', 
       prompt: question,
     });
     if (response && response.generations && response.generations.length > 0) {
@@ -54,7 +47,6 @@ async function generateResponse(question) {
   }
 }
 
-// Función para enviar un mensaje de feedback con opciones
 function sendFeedback(chatId) {
   const options = {
     reply_markup: {
@@ -69,10 +61,10 @@ function sendFeedback(chatId) {
   telegramBot.sendMessage(chatId, "¿Te ha sido útil esta respuesta?", options);
 }
 
-// Manejar los mensajes enviados por Telegram
+
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const msg = req.body; // El mensaje viene en el cuerpo de la solicitud
+    const msg = req.body; 
 
     const chatId = msg.chat.id;
     const messageText = msg.text.trim().toLowerCase();
@@ -94,11 +86,11 @@ export default async function handler(req, res) {
       };
       await telegramBot.sendMessage(chatId, "Kaixo sukaldari! ¿En qué te puedo ayudar?", options);
     }
-    // Responder a "Buscar Recetas"
+    
     else if (messageText === "buscar recetas") {
       telegramBot.sendMessage(chatId, "Por favor, escribe el nombre de un ingrediente o receta que te gustaría buscar.");
     }
-    // Responder a "Agregar Receta"
+    
     else if (messageText === "agregar receta") {
       if (!isAdmin(msg)) {
         telegramBot.sendMessage(chatId, "No tienes permisos para agregar recetas.");
@@ -117,7 +109,6 @@ export default async function handler(req, res) {
           telegramBot.once('message', async (msg) => {
             const instrucciones = msg.text;
 
-            // Guardar la receta en MongoDB
             const newReceta = new Receta({
               nombre: recetaNombre,
               ingredientes,
@@ -134,18 +125,16 @@ export default async function handler(req, res) {
         });
       });
     }
-    // Preguntar sobre cocina
+    
     else if (messageText.includes("pregunta")) {
-      const userQuestion = messageText.replace(/pregunta/i, '').trim(); // Eliminar palabra "pregunta" y limpiar espacios
+      const userQuestion = messageText.replace(/pregunta/i, '').trim();
 
       if (userQuestion) {
         try {
-          // Generar respuesta usando Cohere
+          
           const response = await generateResponse(userQuestion);
-          // Enviar respuesta al usuario
           telegramBot.sendMessage(chatId, response);
 
-          // Guardar esta pregunta y respuesta en la base de datos
           try {
             const newPreguntaFrecuente = new PreguntaFrecuente({
               pregunta: userQuestion,
@@ -156,7 +145,6 @@ export default async function handler(req, res) {
             console.error('Error al guardar pregunta frecuente:', dbError);
           }
 
-          // Preguntar al usuario por feedback
           sendFeedback(chatId);
         } catch (error) {
           telegramBot.sendMessage(chatId, 'Lo siento, ocurrió un error al consultar con Cohere. Intenta nuevamente más tarde.');
@@ -166,7 +154,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // Responder al callback de "Añadir a Favoritos" o "Eliminar de Favoritos"
     else if (msg.callback_query) {
       const callbackData = msg.callback_query.data;
       if (callbackData.startsWith('add_fav_')) {
@@ -188,15 +175,14 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).send('OK'); // Responder correctamente a Telegram
+    return res.status(200).send('OK'); 
   } else {
-    return res.status(405).send('Method Not Allowed'); // Método no permitido si no es POST
+    return res.status(405).send('Method Not Allowed'); 
   }
 }
 
-// Establecer el webhook para que Telegram sepa dónde enviar los mensajes
 async function setWebhook() {
-  const webhookUrl = `${process.env.VERCEL_URL}/api/bot`; // Asegúrate de que esta URL sea la correcta
+  const webhookUrl = `${process.env.VERCEL_URL}/api/bot`;
   try {
     await telegramBot.setWebHook(webhookUrl);
   } catch (error) {
@@ -204,5 +190,4 @@ async function setWebhook() {
   }
 }
 
-// Llamar a la función para establecer el webhook al desplegar
 setWebhook();
