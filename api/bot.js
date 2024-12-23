@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-import { TelegramBot } from 'node-telegram-bot-api';
+import TelegramBot from 'node-telegram-bot-api';
 import mongoose from 'mongoose';
 import { CohereClient } from 'cohere-ai';
 
@@ -23,7 +23,7 @@ const usuarioSchema = new Schema({
 });
 const Usuario = mongoose.models.Usuario || mongoose.model('Usuario', usuarioSchema);
 
-const telegramBot = new TelegramBot(process.env.TELEGRAM_API_KEY, { polling: false });
+const telegramBot = new TelegramBot(process.env.TELEGRAM_API_KEY);
 
 const cohere = new CohereClient({
   token: process.env.COHERE_API_KEY,
