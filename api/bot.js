@@ -63,22 +63,16 @@ function sendFeedback(chatId) {
 
 
 export default async function handler(req, res) {
-  console.log('Solicitante:', req.method);
-  console.log('Cuerpo:', req.body);
+
   if (req.method === 'POST') {
     const msg = req.body.message || {};
-    const chatId = msg.chat?.id; // Usa optional chaining para evitar errores 
-    console.log(msg);
-    // Verificar la estructura del mensaje
-    if (!msg.message || !msg.message.chat || !msg.message.chat.id) {
-      console.error("Estructura del mensaje inválida:", msg);
+    const chatId = msg.chat?.id;
+
+    // Verificar si el mensaje y el chatId existen
+    if (!msg.chat || !msg.chat.id) {
       return res.status(400).send('Bad Request');
     }
-    
-    if (!chatId) {
-      console.error("No se pudo obtener el chatId del mensaje:", msg);
-      return res.status(400).send("Chat ID no encontrado");
-    }
+
     const messageText = msg.text?.trim().toLowerCase();
 
     // Responder a "Chef!"
