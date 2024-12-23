@@ -68,8 +68,13 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const msg = req.body; 
 console.log(msg);
-    const chatId = msg.chat.id;
-    const messageText = msg.text.trim().toLowerCase();
+// Verificar la estructura del mensaje
+if (!msg.message || !msg.message.chat || !msg.message.chat.id) {
+  console.error("Estructura del mensaje inválida:", msg);
+  return res.status(400).send('Bad Request');
+}
+    const chatId = msg.message.chat.id;
+    const messageText = msg.message.text.trim().toLowerCase();
 
     // Responder a "Chef!"
     if (messageText === "chef!") {
