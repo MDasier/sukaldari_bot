@@ -65,7 +65,7 @@ function sendFeedback(chatId) {
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     const msg = req.body; 
-
+console.log(msg);
     const chatId = msg.chat.id;
     const messageText = msg.text.trim().toLowerCase();
 
