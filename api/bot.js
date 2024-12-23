@@ -76,7 +76,45 @@ export default async function handler(req, res) {
     const messageText = message.text?.trim().toLowerCase();
 
     if (!chatId) return res.status(400).send('Bad Request');
+      // Manejo de callback_query
+      if (callback_query) {
+        const { data, message } = callback_query;
+        const chatId = message.chat?.id;
 
+      if (data === 'feedback_yes') {
+        await telegramBot.sendMessage(chatId, '¡Gracias por tu feedback positivo!');
+      } else if (data === 'feedback_no') {
+        await telegramBot.sendMessage(chatId, 'Lo sentimos, intentamos mejorar día a día.');
+      }
+
+      // Responder al callback query
+      await telegramBot.answerCallbackQuery(callback_query.id);
+
+        // Manejo de favoritos (añadir o eliminar)
+        if (data.startsWith('add_fav_')) {
+          const recetaId = data.split('_')[2];
+          const user = await Usuario.findOne({ userId: callback_query.from.id });
+
+          if (user) {
+            user.favoritos.push(recetaId);
+            await user.save();
+            await telegramBot.sendMessage(chatId, 'Receta añadida a tus favoritos.');
+          }
+        }
+
+        if (data.startsWith('remove_fav_')) {
+          const recetaId = data.split('_')[2];
+          const user = await Usuario.findOne({ userId: callback_query.from.id });
+
+          if (user) {
+            user.favoritos = user.favoritos.filter(fav => fav.toString() !== recetaId);
+            await user.save();
+            await telegramBot.sendMessage(chatId, 'Receta eliminada de tus favoritos.');
+          }
+        }
+        
+        return res.status(200).send('OK');
+      }
     switch (messageText) {
       case 'chef!':
         await telegramBot.sendMessage(chatId, 'Kaixo sukaldari! ¿En qué te puedo ayudar?', {
