@@ -70,7 +70,7 @@ function sendFeedback(chatId) {
 
 
 export default async function handler(req, res) {
-
+  console.log(req.body);
   if (req.method === 'POST') {
     const msg = req.body.message || {};
     const chatId = msg.chat?.id;
