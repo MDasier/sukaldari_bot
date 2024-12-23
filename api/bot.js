@@ -13,7 +13,8 @@ const { Schema } = mongoose;
 const recetaSchema = new Schema({
   nombre: { type: String, required: true },
   ingredientes: { type: [String], required: true },
-  instrucciones: { type: String, required: true }
+  instrucciones: { type: String, required: true },
+  etiquetas: { type: [String], default: [] } 
 });
 const Receta = mongoose.models.Receta || mongoose.model('Receta', recetaSchema);
 
@@ -76,7 +77,7 @@ export default async function handler(req, res) {
     const messageText = msg.text?.trim().toLowerCase();
 
     // Responder a "Chef!"
-    if (messageText === "chef!") {
+    if (messageText.toLowerCase() === "chef!") {
       const options = {
         reply_markup: {
           keyboard: [
@@ -93,11 +94,55 @@ export default async function handler(req, res) {
       await telegramBot.sendMessage(chatId, "Kaixo sukaldari! ¿En qué te puedo ayudar?", options);
     }
     
-    else if (messageText === "buscar recetas") {
+    else if (messageText === "Buscar recetas") {
       telegramBot.sendMessage(chatId, "Por favor, escribe el nombre de un ingrediente o receta que te gustaría buscar.");
+      telegramBot.once('message', async (msg) => {
+        const searchTerm = msg.text.trim().toLowerCase();
+    
+        if (searchTerm) {
+          try {            
+            const recetas = await Receta.find({
+              $or: [
+                { nombre: { $regex: searchTerm, $options: 'i' } }, 
+                { ingredientes: { $elemMatch: { $regex: searchTerm, $options: 'i' } } }, 
+                { etiquetas: { $elemMatch: { $regex: searchTerm, $options: 'i' } } }  
+              ]
+            });
+    
+            if (recetas.length > 0) {
+              recetas.forEach(async (receta) => {
+                const inlineKeyboard = [
+                  [
+                    {
+                      text: "Añadir a Favoritos",
+                      callback_data: `add_fav_${receta._id}`,
+                    }
+                  ]
+                ];
+    
+                await telegramBot.sendMessage(
+                  chatId,
+                  `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+                  {
+                    parse_mode: 'Markdown',
+                    reply_markup: { inline_keyboard: inlineKeyboard }
+                  }
+                );
+              });
+            } else {
+              telegramBot.sendMessage(chatId, `No se encontraron recetas que coincidan con "${searchTerm}".`);
+            }
+          } catch (error) {
+            telegramBot.sendMessage(chatId, 'Hubo un error al realizar la búsqueda. Intenta nuevamente más tarde.');
+          }
+        } else {
+          telegramBot.sendMessage(chatId, "Por favor, ingresa un término de búsqueda válido.");
+        }
+      });
+    
     }
     
-  else if (messageText === "agregar receta") {
+  else if (messageText === "Agregar receta") {
     if (!isAdmin(msg)) {
       telegramBot.sendMessage(chatId, "No tienes permisos para agregar recetas.");
       return;
@@ -158,7 +203,7 @@ export default async function handler(req, res) {
         telegramBot.sendMessage(chatId, "Por favor, haz una pregunta sobre cocina después de la palabra 'pregunta'.");
       }
     }
-    else if (messageText === "ver recetas favoritas") {
+    else if (messageText === "Ver recetas favoritas") {
       const user = await Usuario.findOne({ userId: msg.from.id });
       if (user && user.favoritos.length > 0) {
         const recetas = await Receta.find({ '_id': { $in: user.favoritos } });
@@ -188,7 +233,7 @@ export default async function handler(req, res) {
         telegramBot.sendMessage(chatId, "No tienes recetas favoritas guardadas.");
       }
     }
-    else if (messageText === "ver todas las recetas") {
+    else if (messageText === "Ver todas las recetas") {
       const recetas = await Receta.find();
       if (recetas.length > 0) {
         recetas.forEach(async (receta) => {
