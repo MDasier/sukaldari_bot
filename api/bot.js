@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       console.error("No se pudo obtener el chatId del mensaje:", msg);
       return res.status(400).send("Chat ID no encontrado");
     }
-    const messageText = msg.message.text.trim().toLowerCase();
+    const messageText = msg.text?.trim().toLowerCase();
 
     // Responder a "Chef!"
     if (messageText === "chef!") {
