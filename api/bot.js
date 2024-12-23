@@ -24,6 +24,12 @@ const usuarioSchema = new Schema({
 });
 const Usuario = mongoose.models.Usuario || mongoose.model('Usuario', usuarioSchema);
 
+const preguntaFrecuenteSchema = new Schema({
+  pregunta: { type: String, required: true },
+  respuesta: { type: String, required: true },
+  cantidadConsultas: { type: Number, default: 1 }, 
+});
+const PreguntaFrecuente = mongoose.model('PreguntaFrecuente', preguntaFrecuenteSchema);
 const telegramBot = new TelegramBot(process.env.TELEGRAM_API_KEY);
 
 const cohere = new CohereClient({
