@@ -63,6 +63,8 @@ function sendFeedback(chatId) {
 
 
 export default async function handler(req, res) {
+  console.log('Solicitante:', req.method);
+  console.log('Cuerpo:', req.body);
   if (req.method === 'POST') {
     const msg = req.body; 
 console.log(msg);
