@@ -206,13 +206,11 @@ export default async function handler(req, res) {
 
       default:
         if (userState[chatId] === 'buscando_receta') {
-          const searchTerm = messageText;
-    
+          const searchTerm = messageText;    
           if (!searchTerm || searchTerm.trim().length === 0) {
             await telegramBot.sendMessage(chatId, 'Por favor, escribe un término válido de búsqueda.');
             return; 
-          }
-    
+          }    
           const recetas = await Receta.find({
             $or: [
               { nombre: { $regex: searchTerm, $options: 'i' } },
@@ -244,13 +242,17 @@ export default async function handler(req, res) {
           }      
           userState[chatId] = null;
         }else if (userState[chatId] === 'preguntando') {
-          const userQuestion = message.text.trim();
-          if (userQuestion) {
-            const response = await generateResponse(userQuestion);
+          const searchTerm = messageText;    
+          if (!searchTerm || searchTerm.trim().length === 0) {
+            await telegramBot.sendMessage(chatId, 'Por favor, escribe tu pregunta.');
+            return; 
+          }
+          if (searchTerm) {
+            const response = await generateResponse(searchTerm);
             await telegramBot.sendMessage(chatId, response);
     
             const newPreguntaFrecuente = new PreguntaFrecuente({
-              pregunta: userQuestion,
+              pregunta: searchTerm,
               respuesta: response,
             });
     
