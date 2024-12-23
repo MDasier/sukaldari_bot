@@ -44,7 +44,7 @@ async function generateResponse(question) {
   try {
     const response = await cohere.generate({
       model: 'command',
-      prompt: question,
+      prompt: `Pregunta: "${question}"\nPor favor, responde en español con claridad.`,
     });
     return response?.generations?.[0]?.text?.trim() || 'Lo siento, no pude generar una respuesta.';
   } catch (error) {
