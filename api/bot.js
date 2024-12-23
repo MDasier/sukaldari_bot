@@ -99,62 +99,120 @@ export default async function handler(req, res) {
         case 'buscar recetas':
           // Lógica para buscar recetas
           await telegramBot.sendMessage(chatId, 'Escribe el nombre, ingrediente o etiqueta para buscar recetas:');
-          telegramBot.once('message', async (msg) => {
-            const searchTerm = msg.text.trim().toLowerCase();
-            const recetas = await Receta.find({
-              $or: [
-                { nombre: { $regex: searchTerm, $options: 'i' } },
-                { ingredientes: { $regex: searchTerm, $options: 'i' } },
-                { etiquetas: { $regex: searchTerm, $options: 'i' } },
-              ]
-            });
+          // Aquí esperamos la respuesta del usuario para buscar las recetas
+            telegramBot.once('message', async (msg) => {
+              const searchTerm = msg.text.trim().toLowerCase();
 
-            if (recetas.length > 0) {
-              for (const receta of recetas) {
-                await telegramBot.sendMessage(
-                  chatId,
-                  `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
-                  { parse_mode: 'Markdown' }
-                );
+              // Buscar recetas en la base de datos
+              const recetas = await Receta.find({
+                $or: [
+                  { nombre: { $regex: searchTerm, $options: 'i' } },
+                  { ingredientes: { $regex: searchTerm, $options: 'i' } },
+                  { etiquetas: { $regex: searchTerm, $options: 'i' } },
+                ]
+              });
+
+              // Verificar si se encontraron recetas
+              if (recetas.length > 0) {
+                for (const receta of recetas) {
+                  // Verificar si la receta ya está en los favoritos del usuario
+                  const user = await Usuario.findOne({ userId: chatId });
+                  const isFavorite = user && user.favoritos.includes(receta._id);
+
+                  // Crear los botones inline para agregar/eliminar de favoritos
+                  const inlineButtons = [
+                    [
+                      {
+                        text: isFavorite ? 'Eliminar de favoritos' : 'Añadir a favoritos',
+                        callback_data: isFavorite ? `remove_fav_${receta._id}` : `add_fav_${receta._id}`,
+                      }
+                    ]
+                  ];
+
+                  // Enviar receta con los botones
+                  await telegramBot.sendMessage(
+                    chatId,
+                    `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+                    { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineButtons } }
+                  );
+                }
+              } else {
+                await telegramBot.sendMessage(chatId, `No se encontraron recetas para "${searchTerm}".`);
               }
-            } else {
-              await telegramBot.sendMessage(chatId, `No se encontraron recetas para "${searchTerm}".`);
-            }
-          });
-          break;
 
-        case 'ver todas las recetas':
-          // Lógica para mostrar todas las recetas
-          const allRecetas = await Receta.find();
-          if (allRecetas.length > 0) {
-            for (const receta of allRecetas) {
-              await telegramBot.sendMessage(
-                chatId,
-                `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
-                { parse_mode: 'Markdown' }
-              );
-            }
-          } else {
-            await telegramBot.sendMessage(chatId, 'No hay recetas disponibles.');
-          }
-          break;
+              // Volver a mostrar el menú después de la búsqueda
+              await telegramBot.sendMessage(chatId, '¿Te gustaría buscar otra receta?', {
+                reply_markup: {
+                  keyboard: [
+                    [{ text: 'Sí, buscar otra receta' }],
+                    [{ text: 'No, regresar al menú principal' }],
+                  ],
+                  resize_keyboard: true,
+                  one_time_keyboard: true,
+                },
+              });
+            });
+            break;
 
-        case 'ver recetas favoritas':
-          // Lógica para ver recetas favoritas
-          const user = await Usuario.findOne({ userId: message.from.id });
-          if (user && user.favoritos.length > 0) {
-            const favoriteRecetas = await Receta.find({ _id: { $in: user.favoritos } });
-            for (const receta of favoriteRecetas) {
-              await telegramBot.sendMessage(
-                chatId,
-                `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
-                { parse_mode: 'Markdown' }
-              );
-            }
-          } else {
-            await telegramBot.sendMessage(chatId, 'No tienes recetas favoritas guardadas.');
-          }
-          break;
+            case 'ver todas las recetas':
+              // Lógica para mostrar todas las recetas
+              const allRecetas = await Receta.find();
+              if (allRecetas.length > 0) {
+                for (const receta of allRecetas) {
+                  // Verificar si la receta ya está en los favoritos del usuario
+                  const user = await Usuario.findOne({ userId: message.from.id });
+                  const isFavorite = user && user.favoritos.includes(receta._id);
+            
+                  // Crear los botones inline para agregar/eliminar de favoritos
+                  const inlineButtons = [
+                    [
+                      {
+                        text: isFavorite ? 'Eliminar de favoritos' : 'Añadir a favoritos',
+                        callback_data: isFavorite ? `remove_fav_${receta._id}` : `add_fav_${receta._id}`,
+                      }
+                    ]
+                  ];
+            
+                  // Enviar receta con los botones
+                  await telegramBot.sendMessage(
+                    chatId,
+                    `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+                    { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineButtons } }
+                  );
+                }
+              } else {
+                await telegramBot.sendMessage(chatId, 'No hay recetas disponibles.');
+              }
+              break;
+            
+            case 'ver recetas favoritas':
+              // Lógica para ver recetas favoritas
+              const user = await Usuario.findOne({ userId: message.from.id });
+              if (user && user.favoritos.length > 0) {
+                const favoriteRecetas = await Receta.find({ _id: { $in: user.favoritos } });
+                for (const receta of favoriteRecetas) {
+                  // Crear los botones inline para eliminar de favoritos
+                  const inlineButtons = [
+                    [
+                      {
+                        text: 'Eliminar de favoritos',
+                        callback_data: `remove_fav_${receta._id}`,
+                      }
+                    ]
+                  ];
+            
+                  // Enviar receta favorita con el botón de eliminar
+                  await telegramBot.sendMessage(
+                    chatId,
+                    `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+                    { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineButtons } }
+                  );
+                }
+              } else {
+                await telegramBot.sendMessage(chatId, 'No tienes recetas favoritas guardadas.');
+              }
+              break;
+            
 
         case 'añadir receta':
           // Lógica para añadir una receta
@@ -186,29 +244,36 @@ export default async function handler(req, res) {
           });
           break;
 
-        case 'preguntar sobre cocina':
-          // Lógica para responder preguntas sobre cocina
-          await telegramBot.sendMessage(chatId, 'Escribe tu pregunta sobre cocina:');
-          telegramBot.once('message', async (msg) => {
-            const userQuestion = msg.text.trim();
-            const response = await generateResponse(userQuestion);
-
-            await telegramBot.sendMessage(chatId, response);
-
-            const newPreguntaFrecuente = new PreguntaFrecuente({
-              pregunta: userQuestion,
-              respuesta: response,
+          case 'preguntar sobre cocina':
+            // Lógica para responder preguntas sobre cocina
+            await telegramBot.sendMessage(chatId, 'Escribe tu pregunta sobre cocina:');
+            
+            // Escuchar la respuesta del usuario a la pregunta
+            telegramBot.once('message', async (msg) => {
+              const userQuestion = msg.text.trim();
+              
+              // Generar la respuesta usando el servicio de Cohere (o cualquier otro servicio que utilices)
+              const response = await generateResponse(userQuestion);
+          
+              // Enviar la respuesta generada al usuario
+              await telegramBot.sendMessage(chatId, response);
+          
+              // Guardar la pregunta frecuente en la base de datos (si es relevante)
+              const newPreguntaFrecuente = new PreguntaFrecuente({
+                pregunta: userQuestion,
+                respuesta: response,
+              });
+          
+              try {
+                await newPreguntaFrecuente.save(); // Guardar la pregunta y la respuesta generada
+              } catch (error) {
+                console.error('Error al guardar pregunta frecuente:', error);
+              }
+          
+              // Enviar el mensaje de feedback al usuario (si le fue útil la respuesta)
+              sendFeedback(chatId);
             });
-
-            try {
-              await newPreguntaFrecuente.save();
-            } catch (error) {
-              console.error('Error al guardar pregunta frecuente:', error);
-            }
-
-            sendFeedback(chatId);
-          });
-          break;
+            break;
 
         default:
           await telegramBot.sendMessage(chatId, 'No entiendo ese comando. Por favor, selecciona una opción del menú.');
@@ -220,13 +285,37 @@ export default async function handler(req, res) {
       const { data, message } = callback_query;
       const chatId = message.chat?.id;
 
+      if (data === 'feedback_yes') {
+        await telegramBot.sendMessage(chatId, '¡Gracias por tu feedback positivo!');
+      } else if (data === 'feedback_no') {
+        await telegramBot.sendMessage(chatId, 'Lo sentimos, intentamos mejorar día a día.');
+      }
+    
+      // Asegurarse de que el botón se haya desactivado después de hacer clic
+      await telegramBot.answerCallbackQuery(callback_query.id);
       if (data.startsWith('add_fav_')) {
         const recetaId = data.split('_')[2];
         const user = await Usuario.findOne({ userId: callback_query.from.id });
+    
         if (user) {
+          // Añadir receta a favoritos
           user.favoritos.push(recetaId);
           await user.save();
-          await telegramBot.answerCallbackQuery(callback_query.id, 'Receta añadida a favoritos.');
+          await telegramBot.sendMessage(chatId, 'Receta añadida a tus favoritos.');
+          await telegramBot.answerCallbackQuery(callback_query.id);  // Asegura que el botón no se quede en espera
+        }
+      }
+    
+      if (data.startsWith('remove_fav_')) {
+        const recetaId = data.split('_')[2];
+        const user = await Usuario.findOne({ userId: callback_query.from.id });
+    
+        if (user) {
+          // Eliminar receta de favoritos
+          user.favoritos = user.favoritos.filter(fav => fav.toString() !== recetaId);
+          await user.save();
+          await telegramBot.sendMessage(chatId, 'Receta eliminada de tus favoritos.');
+          await telegramBot.answerCallbackQuery(callback_query.id);  // Asegura que el botón no se quede en espera
         }
       }
     }
