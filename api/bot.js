@@ -4,10 +4,10 @@ import mongoose from 'mongoose';
 import { CohereClient } from 'cohere-ai';
 
 config();
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Conectado a MongoDB'))
   .catch(err => console.error('Error al conectar a MongoDB:', err));
-
 
 const { Schema } = mongoose;
 const recetaSchema = new Schema({
@@ -15,13 +15,13 @@ const recetaSchema = new Schema({
   ingredientes: { type: [String], required: true },
   instrucciones: { type: String, required: true }
 });
-const Receta = mongoose.model('Receta', recetaSchema);
+const Receta = mongoose.models.Receta || mongoose.model('Receta', recetaSchema);
 
 const usuarioSchema = new Schema({
   userId: { type: Number, required: true, unique: true },
   favoritos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Receta' }],
 });
-const Usuario = mongoose.model('Usuario', usuarioSchema);
+const Usuario = mongoose.models.Usuario || mongoose.model('Usuario', usuarioSchema);
 
 const telegramBot = new TelegramBot(process.env.TELEGRAM_API_KEY, { polling: false });
 
@@ -98,32 +98,7 @@ export default async function handler(req, res) {
       }
 
       telegramBot.sendMessage(chatId, "¡Genial! Vamos a agregar una nueva receta. ¿Cómo se llama la receta?");
-      telegramBot.once('message', (msg) => {
-        const recetaNombre = msg.text;
-        telegramBot.sendMessage(chatId, `Receta: ${recetaNombre}. Ahora, por favor, envíame los ingredientes (separados por coma, ej: "1 cebolla, 2 dientes de ajo"):`);
-
-        telegramBot.once('message', (msg) => {
-          const ingredientes = msg.text.split(',').map(ing => ing.trim());
-          telegramBot.sendMessage(chatId, 'Perfecto. Ahora, ¿cuáles son las instrucciones para esta receta?');
-
-          telegramBot.once('message', async (msg) => {
-            const instrucciones = msg.text;
-
-            const newReceta = new Receta({
-              nombre: recetaNombre,
-              ingredientes,
-              instrucciones
-            });
-
-            try {
-              await newReceta.save();
-              telegramBot.sendMessage(chatId, `La receta "${recetaNombre}" se ha guardado correctamente.`);
-            } catch (error) {
-              telegramBot.sendMessage(chatId, 'Hubo un error al guardar la receta. Inténtalo más tarde.');
-            }
-          });
-        });
-      });
+      
     }
     
     else if (messageText.includes("pregunta")) {
@@ -131,7 +106,6 @@ export default async function handler(req, res) {
 
       if (userQuestion) {
         try {
-          
           const response = await generateResponse(userQuestion);
           telegramBot.sendMessage(chatId, response);
 
