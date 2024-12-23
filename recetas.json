@@ -1,0 +1,193 @@
+[
+  {
+    "nombre": "Ensalada de Quinoa",
+    "ingredientes": [
+      "1 taza de quinoa",
+      "2 tazas de agua",
+      "1 pepino, picado",
+      "1 tomate, picado",
+      "Jugo de 1 limón",
+      "Aceite de oliva al gusto",
+      "Sal y pimienta al gusto"
+    ],
+    "instrucciones": "Cocina la quinoa en agua según las instrucciones del paquete. Mezcla todos los ingredientes en un bol y adereza con limón, aceite de oliva, sal y pimienta.",
+    "etiquetas": ["vegano", "sin gluten", "bajo en calorías", "saludable"],
+    "calorias": 200,
+    "personas": 2
+  },
+  {
+    "nombre": "Tacos de Pollo",
+    "ingredientes": [
+      "500 g de pechuga de pollo",
+      "Tortillas de maíz",
+      "Lechuga picada",
+      "Tomate picado",
+      "Salsa al gusto",
+      "Aceite de oliva"
+    ],
+    "instrucciones": "Cocina el pollo en una sartén con aceite de oliva hasta que esté dorado. Sirve en las tortillas y agrega los ingredientes frescos y salsa.",
+    "etiquetas": ["carne", "sin gluten", "bajo en carbohidratos"],
+    "calorias": 350,
+    "personas": 3
+  },
+  {
+    "nombre": "Galletas de Avena",
+    "ingredientes": [
+      "1 taza de avena",
+      "1/2 taza de azúcar moreno",
+      "1/2 taza de mantequilla",
+      "1 huevo",
+      "1/4 de taza de harina",
+      "1 cucharadita de esencia de vainilla"
+    ],
+    "instrucciones": "Precalienta el horno a 180°C. Mezcla todos los ingredientes y forma pequeñas bolitas. Colócalas en una bandeja de hornear y hornea durante 12-15 minutos.",
+    "etiquetas": ["sin gluten", "postre", "bajo en azúcar"],
+    "calorias": 150,
+    "personas": 6
+  },
+  {
+    "nombre": "Sopa de Lentejas",
+    "ingredientes": [
+      "1 taza de lentejas",
+      "1 zanahoria, picada",
+      "1 cebolla, picada",
+      "2 dientes de ajo, picados",
+      "1 litro de caldo de verduras",
+      "Sal y pimienta al gusto"
+    ],
+    "instrucciones": "Sofríe la cebolla, zanahoria y ajo en una olla con un poco de aceite. Agrega las lentejas y el caldo. Cocina hasta que las lentejas estén tiernas.",
+    "etiquetas": ["vegano", "sin gluten", "bajo en calorías", "saludable"],
+    "calorias": 250,
+    "personas": 4
+  },
+  {
+    "nombre": "Pizza Margarita",
+    "ingredientes": [
+      "Masa de pizza",
+      "Salsa de tomate",
+      "Mozzarella",
+      "Albahaca fresca",
+      "Aceite de oliva"
+    ],
+    "instrucciones": "Extiende la masa de pizza, agrega la salsa de tomate, la mozzarella y hornea a 200°C hasta que la masa esté dorada. Decora con albahaca y un toque de aceite de oliva.",
+      "etiquetas": ["vegetariano", "sin gluten", "bajo en carbohidratos"],
+      "calorias": 300,
+      "personas": 2
+  },
+  {
+    "nombre": "Burritos Veganos",
+    "ingredientes": [
+      "Tortillas de harina integral",
+      "Frijoles negros cocidos",
+      "Maíz",
+      "Aguacate",
+      "Lechuga",
+      "Salsa de tomate"
+    ],
+    "instrucciones": "Coloca una capa de frijoles en las tortillas, añade los demás ingredientes y enrolla el burrito. Sirve con salsa al gusto.",
+    "etiquetas": ["vegano", "sin gluten", "bajo en calorías", "saludable"],
+    "calorias": 350,
+    "personas": 2
+  },
+  {
+    "nombre": "Pollo al Curry",
+    "ingredientes": [
+      "500 g de pechuga de pollo",
+      "1 cebolla picada",
+      "2 dientes de ajo picados",
+      "1 cucharada de curry en polvo",
+      "1 taza de crema de coco",
+      "Aceite de oliva",
+      "Sal y pimienta"
+    ],
+    "instrucciones": "Sofríe el pollo en aceite hasta dorarse. Agrega la cebolla, ajo y curry. Cocina por unos minutos, añade la crema de coco y cocina a fuego lento hasta que esté listo.",
+    "etiquetas": ["carne", "bajo en carbohidratos"],
+    "calorias": 400,
+    "personas": 4
+  },
+  {
+    "nombre": "Ensalada César",
+    "ingredientes": [
+      "Lechuga romana",
+      "Crutones",
+      "Queso parmesano rallado",
+      "Salsa César",
+      "Pechuga de pollo (opcional)"
+    ],
+    "instrucciones": "Mezcla todos los ingredientes en un bol grande. Si deseas, agrega pollo a la parrilla por encima.",
+    "etiquetas": ["vegetariano", "carne opcional"],
+    "calorias": 300,
+    "personas": 2
+  },
+  {
+    "nombre": "Hamburguesa Vegana",
+    "ingredientes": [
+      "1 taza de garbanzos cocidos",
+      "1/2 taza de avena",
+      "1 zanahoria rallada",
+      "1 cucharadita de cúrcuma",
+      "Aceite de oliva",
+      "Pan de hamburguesa"
+    ],
+    "instrucciones": "Tritura los garbanzos y mezcla con los demás ingredientes. Forma hamburguesas y cocina en una sartén con aceite.",
+    "etiquetas": ["vegano", "sin gluten", "bajo en calorías"],
+    "calorias": 200,
+    "personas": 2
+  },
+  {
+    "nombre": "Sushi Vegano",
+    "ingredientes": [
+      "Alga nori",
+      "Arroz para sushi",
+      "Aguacate",
+      "Pepino",
+      "Zanahoria"
+    ],
+    "instrucciones": "Cocina el arroz y extiéndelo sobre el alga nori. Coloca los vegetales en el centro y enrolla el sushi.",
+    "etiquetas": ["vegano", "sin gluten"],
+    "calorias": 250,
+    "personas": 2
+  },
+  {
+    "nombre": "Pastel de Zanahoria",
+    "ingredientes": [
+      "2 zanahorias ralladas",
+      "1 taza de azúcar",
+      "2 tazas de harina",
+      "1 cucharadita de polvo de hornear",
+      "1/2 taza de aceite",
+      "3 huevos"
+    ],
+    "instrucciones": "Mezcla los ingredientes y hornea a 180°C por 30-40 minutos.",
+    "etiquetas": ["postre", "vegetariano"],
+    "calorias": 350,
+    "personas": 8
+  },
+  {
+    "nombre": "Tarta de Manzana",
+    "ingredientes": [
+      "Masa para tarta",
+      "6 manzanas",
+      "Azúcar al gusto",
+      "Canela"
+    ],
+    "instrucciones": "Coloca las manzanas en la masa, espolvorea con azúcar y canela, y hornea a 180°C por 40 minutos.",
+    "etiquetas": ["postre", "vegetariano"],
+    "calorias": 400,
+    "personas": 6
+  },
+  {
+    "nombre": "Crema de Calabaza",
+    "ingredientes": [
+      "1 calabaza",
+      "1 cebolla",
+      "2 dientes de ajo",
+      "1 litro de caldo de verduras",
+      "Sal y pimienta"
+    ],
+    "instrucciones": "Sofríe la cebolla y el ajo, agrega la calabaza picada y el caldo. Cocina hasta que esté tierna y licúa.",
+    "etiquetas": ["vegano", "sin gluten", "bajo en calorías"],
+    "calorias": 150,
+    "personas": 4
+  }
+]
