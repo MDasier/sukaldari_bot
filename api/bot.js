@@ -205,84 +205,89 @@ export default async function handler(req, res) {
         break;
 
       default:
-        await telegramBot.sendMessage(chatId, 'No entiendo ese comando. Por favor, selecciona una opción del menú.');
-        break;
-    }
-
-    if (userState[chatId] === 'buscando_receta') {
-      const searchTerm = messageText;
-      const recetas = await Receta.find({
-        $or: [
-          { nombre: { $regex: searchTerm, $options: 'i' } },
-          { ingredientes: { $regex: searchTerm, $options: 'i' } },
-          { etiquetas: { $regex: searchTerm, $options: 'i' } },
-        ]
-      });
-
-      if (recetas.length > 0) {
-        for (const receta of recetas) {
-          const user = await Usuario.findOne({ userId: chatId });
-          const isFavorite = user && user.favoritos.includes(receta._id);
-          const inlineButtons = [
-            [
-              {
-                text: isFavorite ? 'Eliminar de favoritos' : 'Añadir a favoritos',
-                callback_data: isFavorite ? `remove_fav_${receta._id}` : `add_fav_${receta._id}`,
-              }
+        if (userState[chatId] === 'buscando_receta') {
+          const searchTerm = messageText;
+    
+          if (!searchTerm || searchTerm.trim().length === 0) {
+            await telegramBot.sendMessage(chatId, 'Por favor, escribe un término válido de búsqueda.');
+            return; 
+          }
+    
+          const recetas = await Receta.find({
+            $or: [
+              { nombre: { $regex: searchTerm, $options: 'i' } },
+              { ingredientes: { $regex: searchTerm, $options: 'i' } },
+              { etiquetas: { $regex: searchTerm, $options: 'i' } },
             ]
-          ];
-          await telegramBot.sendMessage(
-            chatId,
-            `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
-            { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineButtons } }
-          );
+          });
+    
+          if (recetas.length > 0) {
+            for (const receta of recetas) {
+              const user = await Usuario.findOne({ userId: chatId });
+              const isFavorite = user && user.favoritos.includes(receta._id);
+              const inlineButtons = [
+                [
+                  {
+                    text: isFavorite ? 'Eliminar de favoritos' : 'Añadir a favoritos',
+                    callback_data: isFavorite ? `remove_fav_${receta._id}` : `add_fav_${receta._id}`,
+                  }
+                ]
+              ];
+              await telegramBot.sendMessage(
+                chatId,
+                `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: inlineButtons } }
+              );
+            }
+          } else {
+            await telegramBot.sendMessage(chatId, `No se encontraron recetas para "${searchTerm}".`);
+          }      
+          userState[chatId] = null;
+        }else if (userState[chatId] === 'preguntando') {
+          const userQuestion = message.text.trim();
+          if (userQuestion) {
+            const response = await generateResponse(userQuestion);
+            await telegramBot.sendMessage(chatId, response);
+    
+            const newPreguntaFrecuente = new PreguntaFrecuente({
+              pregunta: userQuestion,
+              respuesta: response,
+            });
+    
+            try {
+              await newPreguntaFrecuente.save();
+            } catch (error) {
+              console.error('Error al guardar pregunta frecuente:', error);
+            }
+    
+            sendFeedback(chatId);
+            userState[chatId] = null;
+          }
+        }else if (userState[chatId] === 'añadiendo_receta') {
+          const nombre = message.text.trim();
+          userState[chatId] = 'esperando_ingredientes';
+          await telegramBot.sendMessage(chatId, '¿Cuáles son los ingredientes? (Separados por comas)');
+        }else if (userState[chatId] === 'esperando_ingredientes') {
+          const ingredientes = message.text.split(',').map(i => i.trim());
+          userState[chatId] = 'esperando_instrucciones';
+          await telegramBot.sendMessage(chatId, 'Escribe las instrucciones de la receta.');
+        }else if (userState[chatId] === 'esperando_instrucciones') {
+          const instrucciones = message.text.trim();
+          const newReceta = new Receta({ nombre: userState[chatId], ingredientes, instrucciones });
+    
+          try {
+            await newReceta.save();
+            await telegramBot.sendMessage(chatId, `Receta "${userState[chatId]}" guardada correctamente.`);
+            userState[chatId] = null;
+          } catch (error) {
+            console.error('Error al guardar receta:', error);
+            await telegramBot.sendMessage(chatId, 'Error al guardar la receta.');
+          }
+        }else {
+          await telegramBot.sendMessage(chatId, 'No entiendo ese comando. Por favor, selecciona una opción del menú.');
         }
-      } else {
-        await telegramBot.sendMessage(chatId, `No se encontraron recetas para "${searchTerm}".`);
-      }      
-      userState[chatId] = null;
-    }else if (userState[chatId] === 'preguntando') {
-      const userQuestion = message.text.trim();
-      if (userQuestion) {
-        const response = await generateResponse(userQuestion);
-        await telegramBot.sendMessage(chatId, response);
-
-        const newPreguntaFrecuente = new PreguntaFrecuente({
-          pregunta: userQuestion,
-          respuesta: response,
-        });
-
-        try {
-          await newPreguntaFrecuente.save();
-        } catch (error) {
-          console.error('Error al guardar pregunta frecuente:', error);
-        }
-
-        sendFeedback(chatId);
-        userState[chatId] = null;
-      }
-    }else if (userState[chatId] === 'añadiendo_receta') {
-      const nombre = message.text.trim();
-      userState[chatId] = 'esperando_ingredientes';
-      await telegramBot.sendMessage(chatId, '¿Cuáles son los ingredientes? (Separados por comas)');
-    }else if (userState[chatId] === 'esperando_ingredientes') {
-      const ingredientes = message.text.split(',').map(i => i.trim());
-      userState[chatId] = 'esperando_instrucciones';
-      await telegramBot.sendMessage(chatId, 'Escribe las instrucciones de la receta.');
-    }else if (userState[chatId] === 'esperando_instrucciones') {
-      const instrucciones = message.text.trim();
-      const newReceta = new Receta({ nombre: userState[chatId], ingredientes, instrucciones });
-
-      try {
-        await newReceta.save();
-        await telegramBot.sendMessage(chatId, `Receta "${userState[chatId]}" guardada correctamente.`);
-        userState[chatId] = null;
-      } catch (error) {
-        console.error('Error al guardar receta:', error);
-        await telegramBot.sendMessage(chatId, 'Error al guardar la receta.');
-      }
-    }
-
+        break;
+    } 
 
     return res.status(200).send('OK');
   }
