@@ -66,14 +66,19 @@ export default async function handler(req, res) {
   console.log('Solicitante:', req.method);
   console.log('Cuerpo:', req.body);
   if (req.method === 'POST') {
-    const msg = req.body; 
-console.log(msg);
-// Verificar la estructura del mensaje
-if (!msg.message || !msg.message.chat || !msg.message.chat.id) {
-  console.error("Estructura del mensaje inválida:", msg);
-  return res.status(400).send('Bad Request');
-}
-    const chatId = msg.message.chat.id;
+    const msg = req.body.message || {};
+    const chatId = msg.chat?.id; // Usa optional chaining para evitar errores 
+    console.log(msg);
+    // Verificar la estructura del mensaje
+    if (!msg.message || !msg.message.chat || !msg.message.chat.id) {
+      console.error("Estructura del mensaje inválida:", msg);
+      return res.status(400).send('Bad Request');
+    }
+    
+    if (!chatId) {
+      console.error("No se pudo obtener el chatId del mensaje:", msg);
+      return res.status(400).send("Chat ID no encontrado");
+    }
     const messageText = msg.message.text.trim().toLowerCase();
 
     // Responder a "Chef!"
@@ -98,15 +103,40 @@ if (!msg.message || !msg.message.chat || !msg.message.chat.id) {
       telegramBot.sendMessage(chatId, "Por favor, escribe el nombre de un ingrediente o receta que te gustaría buscar.");
     }
     
-    else if (messageText === "agregar receta") {
-      if (!isAdmin(msg)) {
-        telegramBot.sendMessage(chatId, "No tienes permisos para agregar recetas.");
-        return;
-      }
-
-      telegramBot.sendMessage(chatId, "¡Genial! Vamos a agregar una nueva receta. ¿Cómo se llama la receta?");
-      
+  else if (messageText === "agregar receta") {
+    if (!isAdmin(msg)) {
+      telegramBot.sendMessage(chatId, "No tienes permisos para agregar recetas.");
+      return;
     }
+
+    telegramBot.sendMessage(chatId, "¡Genial! Vamos a agregar una nueva receta. ¿Cómo se llama la receta?");
+    telegramBot.once('message', (msg) => {
+      const recetaNombre = msg.text;
+      telegramBot.sendMessage(chatId, `Receta: ${recetaNombre}. Ahora, por favor, envíame los ingredientes (separados por coma, ej: "1 cebolla, 2 dientes de ajo"):`);
+
+      telegramBot.once('message', (msg) => {
+        const ingredientes = msg.text.split(',').map(ing => ing.trim());
+        telegramBot.sendMessage(chatId, 'Perfecto. Ahora, ¿cuáles son las instrucciones para esta receta?');
+
+        telegramBot.once('message', async (msg) => {
+          const instrucciones = msg.text;
+
+          const newReceta = new Receta({
+            nombre: recetaNombre,
+            ingredientes,
+            instrucciones
+          });
+
+          try {
+            await newReceta.save();
+            telegramBot.sendMessage(chatId, `La receta "${recetaNombre}" se ha guardado correctamente.`);
+          } catch (error) {
+            telegramBot.sendMessage(chatId, 'Hubo un error al guardar la receta. Inténtalo más tarde.');
+          }
+        });
+      });
+    });
+  } 
     
     else if (messageText.includes("pregunta")) {
       const userQuestion = messageText.replace(/pregunta/i, '').trim();
@@ -132,6 +162,62 @@ if (!msg.message || !msg.message.chat || !msg.message.chat.id) {
         }
       } else {
         telegramBot.sendMessage(chatId, "Por favor, haz una pregunta sobre cocina después de la palabra 'pregunta'.");
+      }
+    }
+    else if (messageText === "ver recetas favoritas") {
+      const user = await Usuario.findOne({ userId: msg.from.id });
+      if (user && user.favoritos.length > 0) {
+        const recetas = await Receta.find({ '_id': { $in: user.favoritos } });
+  
+        for (const receta of recetas) {
+          // Crear botones para cada receta
+          const inlineKeyboard = [
+            [
+              {
+                text: "Eliminar de Favoritos",
+                callback_data: `remove_fav_${receta._id}`,
+              }
+            ]
+          ];
+  
+          // Enviar un mensaje para cada receta favorita
+          await telegramBot.sendMessage(
+            chatId,
+            `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: { inline_keyboard: inlineKeyboard }
+            }
+          );
+        }
+      } else {
+        telegramBot.sendMessage(chatId, "No tienes recetas favoritas guardadas.");
+      }
+    }
+    else if (messageText === "ver todas las recetas") {
+      const recetas = await Receta.find();
+      if (recetas.length > 0) {
+        recetas.forEach(async (receta) => {
+          const inlineKeyboard = [
+            [
+              {
+                text: "Añadir a Favoritos",
+                callback_data: `add_fav_${receta._id}`,
+              }
+            ]
+          ];
+  
+          await telegramBot.sendMessage(
+            chatId,
+            `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: { inline_keyboard: inlineKeyboard }
+            }
+          );
+        });
+      } else {
+        telegramBot.sendMessage(chatId, "No hay recetas disponibles.");
       }
     }
 
