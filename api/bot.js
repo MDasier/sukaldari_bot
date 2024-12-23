@@ -80,6 +80,7 @@ export default async function handler(req, res) {
 
       switch (messageText) {
         case 'chef!':
+          // Responder con las opciones del menú
           await telegramBot.sendMessage(chatId, 'Kaixo sukaldari! ¿En qué te puedo ayudar?', {
             reply_markup: {
               keyboard: [
@@ -96,6 +97,7 @@ export default async function handler(req, res) {
           break;
 
         case 'buscar recetas':
+          // Lógica para buscar recetas
           await telegramBot.sendMessage(chatId, 'Escribe el nombre, ingrediente o etiqueta para buscar recetas:');
           telegramBot.once('message', async (msg) => {
             const searchTerm = msg.text.trim().toLowerCase();
@@ -122,6 +124,7 @@ export default async function handler(req, res) {
           break;
 
         case 'ver todas las recetas':
+          // Lógica para mostrar todas las recetas
           const allRecetas = await Receta.find();
           if (allRecetas.length > 0) {
             for (const receta of allRecetas) {
@@ -137,6 +140,7 @@ export default async function handler(req, res) {
           break;
 
         case 'ver recetas favoritas':
+          // Lógica para ver recetas favoritas
           const user = await Usuario.findOne({ userId: message.from.id });
           if (user && user.favoritos.length > 0) {
             const favoriteRecetas = await Receta.find({ _id: { $in: user.favoritos } });
@@ -153,35 +157,37 @@ export default async function handler(req, res) {
           break;
 
         case 'añadir receta':
+          // Lógica para añadir una receta
           if (!isAdmin(message)) {
             await telegramBot.sendMessage(chatId, 'No tienes permisos para agregar recetas.');
             return;
           }
   
-            await telegramBot.sendMessage(chatId, '¿Cómo se llama la receta?');
+          await telegramBot.sendMessage(chatId, '¿Cómo se llama la receta?');
+          telegramBot.once('message', async (msg) => {
+            const nombre = msg.text.trim();
+            await telegramBot.sendMessage(chatId, '¿Cuáles son los ingredientes? (Separados por comas)');
             telegramBot.once('message', async (msg) => {
-              const nombre = msg.text.trim();
-              await telegramBot.sendMessage(chatId, '¿Cuáles son los ingredientes? (Separados por comas)');
+              const ingredientes = msg.text.split(',').map(i => i.trim());
+              await telegramBot.sendMessage(chatId, 'Escribe las instrucciones:');
               telegramBot.once('message', async (msg) => {
-                const ingredientes = msg.text.split(',').map(i => i.trim());
-                await telegramBot.sendMessage(chatId, 'Escribe las instrucciones:');
-                telegramBot.once('message', async (msg) => {
-                  const instrucciones = msg.text.trim();
-                  const newReceta = new Receta({ nombre, ingredientes, instrucciones });
+                const instrucciones = msg.text.trim();
+                const newReceta = new Receta({ nombre, ingredientes, instrucciones });
   
-                  try {
-                    await newReceta.save();
-                    await telegramBot.sendMessage(chatId, `Receta "${nombre}" guardada correctamente.`);
-                  } catch (error) {
-                    console.error('Error al guardar receta:', error);
-                    await telegramBot.sendMessage(chatId, 'Error al guardar la receta.');
-                  }
-                });
+                try {
+                  await newReceta.save();
+                  await telegramBot.sendMessage(chatId, `Receta "${nombre}" guardada correctamente.`);
+                } catch (error) {
+                  console.error('Error al guardar receta:', error);
+                  await telegramBot.sendMessage(chatId, 'Error al guardar la receta.');
+                }
               });
             });
+          });
           break;
 
         case 'preguntar sobre cocina':
+          // Lógica para responder preguntas sobre cocina
           await telegramBot.sendMessage(chatId, 'Escribe tu pregunta sobre cocina:');
           telegramBot.once('message', async (msg) => {
             const userQuestion = msg.text.trim();
@@ -230,6 +236,7 @@ export default async function handler(req, res) {
 
   return res.status(405).send('Method Not Allowed');
 }
+
 
 async function setWebhook() {
   const webhookUrl = `${process.env.VERCEL_URL}/api/bot`;
