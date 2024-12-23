@@ -95,7 +95,7 @@ export default async function handler(req, res) {
           });
           break;
 
-        case 'Buscar Recetas':
+        case 'buscar recetas':
           await telegramBot.sendMessage(chatId, 'Escribe el nombre, ingrediente o etiqueta para buscar recetas:');
           telegramBot.once('message', async (msg) => {
             const searchTerm = msg.text.trim().toLowerCase();
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
           });
           break;
 
-        case 'Ver todas las recetas':
+        case 'ver todas las recetas':
           const allRecetas = await Receta.find();
           if (allRecetas.length > 0) {
             for (const receta of allRecetas) {
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
           }
           break;
 
-        case 'Ver recetas favoritas':
+        case 'ver recetas favoritas':
           const user = await Usuario.findOne({ userId: message.from.id });
           if (user && user.favoritos.length > 0) {
             const favoriteRecetas = await Receta.find({ _id: { $in: user.favoritos } });
@@ -152,7 +152,7 @@ export default async function handler(req, res) {
           }
           break;
 
-        case 'Añadir Receta':
+        case 'añadir receta':
           if (!isAdmin(message)) {
             await telegramBot.sendMessage(chatId, 'No tienes permisos para agregar recetas.');
             return;
@@ -181,7 +181,7 @@ export default async function handler(req, res) {
             });
           break;
 
-        case 'Preguntar sobre Cocina':
+        case 'preguntar sobre cocina':
           await telegramBot.sendMessage(chatId, 'Escribe tu pregunta sobre cocina:');
           telegramBot.once('message', async (msg) => {
             const userQuestion = msg.text.trim();
