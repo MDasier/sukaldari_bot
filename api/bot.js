@@ -10,11 +10,12 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error('Error al conectar a MongoDB:', err));
 
 const { Schema } = mongoose;
+
 const recetaSchema = new Schema({
   nombre: { type: String, required: true },
   ingredientes: { type: [String], required: true },
   instrucciones: { type: String, required: true },
-  etiquetas: { type: [String], default: [] } 
+  etiquetas: { type: [String], default: [] }
 });
 const Receta = mongoose.models.Receta || mongoose.model('Receta', recetaSchema);
 
@@ -27,278 +28,216 @@ const Usuario = mongoose.models.Usuario || mongoose.model('Usuario', usuarioSche
 const preguntaFrecuenteSchema = new Schema({
   pregunta: { type: String, required: true },
   respuesta: { type: String, required: true },
-  cantidadConsultas: { type: Number, default: 1 }, 
+  cantidadConsultas: { type: Number, default: 1 },
 });
-const PreguntaFrecuente = mongoose.model('PreguntaFrecuente', preguntaFrecuenteSchema);
-const telegramBot = new TelegramBot(process.env.TELEGRAM_API_KEY);
+const PreguntaFrecuente = mongoose.models.PreguntaFrecuente || mongoose.model('PreguntaFrecuente', preguntaFrecuenteSchema);
 
-const cohere = new CohereClient({
-  token: process.env.COHERE_API_KEY,
-});
+const telegramBot = new TelegramBot(process.env.TELEGRAM_API_KEY, { polling: false });
 
-const isAdmin = (msg) => msg.from.id === parseInt(process.env.ADMIN_ID);
+const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
+
+const isAdmin = (msg) => msg.from?.id === parseInt(process.env.ADMIN_ID, 10);
+
 
 async function generateResponse(question) {
   try {
     const response = await cohere.generate({
-      model: 'command', 
+      model: 'command',
       prompt: question,
     });
-    if (response && response.generations && response.generations.length > 0) {
-      return response.generations[0].text.trim();
-    } else {
-      return 'Lo siento, no pude generar una respuesta.';
-    }
+    return response?.generations?.[0]?.text?.trim() || 'Lo siento, no pude generar una respuesta.';
   } catch (error) {
+    console.error('Error al procesar pregunta con Cohere:', error);
     return 'Lo siento, hubo un error al procesar tu pregunta.';
   }
 }
+
 
 function sendFeedback(chatId) {
   const options = {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "Sí", callback_data: "feedback_yes" },
-          { text: "No", callback_data: "feedback_no" }
+          { text: 'Sí', callback_data: 'feedback_yes' },
+          { text: 'No', callback_data: 'feedback_no' }
         ]
       ]
     }
   };
-  telegramBot.sendMessage(chatId, "¿Te ha sido útil esta respuesta?", options);
+  telegramBot.sendMessage(chatId, '¿Te ha sido útil esta respuesta?', options);
 }
 
 
 export default async function handler(req, res) {
-  console.log(req.body);
   if (req.method === 'POST') {
-    const msg = req.body.message || {};
-    const chatId = msg.chat?.id;
+    const { message, callback_query } = req.body;
 
-    // Verificar si el mensaje y el chatId existen
-    if (!msg.chat || !msg.chat.id) {
-      return res.status(400).send('Bad Request');
-    }
+    if (message) {
+      const chatId = message.chat?.id;
+      const messageText = message.text?.trim().toLowerCase();
 
-    const messageText = msg.text?.trim().toLowerCase();
+      if (!chatId) return res.status(400).send('Bad Request');
 
-    // Responder a "Chef!"
-    if (messageText.toLowerCase() === "chef!") {
-      const options = {
-        reply_markup: {
-          keyboard: [
-            [{ text: "Buscar Recetas" }],
-            [{ text: "Agregar Receta" }],
-            [{ text: "Preguntar sobre Cocina" }],
-            [{ text: "Ver recetas favoritas" }],
-            [{ text: "Ver todas las recetas" }]
-          ],
-          resize_keyboard: true,
-          one_time_keyboard: true,
-        },
-      };
-      await telegramBot.sendMessage(chatId, "Kaixo sukaldari! ¿En qué te puedo ayudar?", options);
-    }
-    
-    else if (messageText === "Buscar recetas") {
-      telegramBot.sendMessage(chatId, "Por favor, escribe el nombre de un ingrediente o receta que te gustaría buscar.");
-      telegramBot.once('message', async (msg) => {
-        const searchTerm = msg.text.trim().toLowerCase();
-    
-        if (searchTerm) {
-          try {            
+      switch (messageText) {
+        case 'chef!':
+          await telegramBot.sendMessage(chatId, 'Kaixo sukaldari! ¿En qué te puedo ayudar?', {
+            reply_markup: {
+              keyboard: [
+                [{ text: 'Buscar Recetas' }],
+                [{ text: 'Añadir Receta' }],
+                [{ text: 'Preguntar sobre Cocina' }],
+                [{ text: 'Ver recetas favoritas' }],
+                [{ text: 'Ver todas las recetas' }]
+              ],
+              resize_keyboard: true,
+              one_time_keyboard: true,
+            },
+          });
+          break;
+
+        case 'Buscar Recetas':
+          await telegramBot.sendMessage(chatId, 'Escribe el nombre, ingrediente o etiqueta para buscar recetas:');
+          telegramBot.once('message', async (msg) => {
+            const searchTerm = msg.text.trim().toLowerCase();
             const recetas = await Receta.find({
               $or: [
-                { nombre: { $regex: searchTerm, $options: 'i' } }, 
-                { ingredientes: { $elemMatch: { $regex: searchTerm, $options: 'i' } } }, 
-                { etiquetas: { $elemMatch: { $regex: searchTerm, $options: 'i' } } }  
+                { nombre: { $regex: searchTerm, $options: 'i' } },
+                { ingredientes: { $regex: searchTerm, $options: 'i' } },
+                { etiquetas: { $regex: searchTerm, $options: 'i' } },
               ]
             });
-    
+
             if (recetas.length > 0) {
-              recetas.forEach(async (receta) => {
-                const inlineKeyboard = [
-                  [
-                    {
-                      text: "Añadir a Favoritos",
-                      callback_data: `add_fav_${receta._id}`,
-                    }
-                  ]
-                ];
-    
+              for (const receta of recetas) {
                 await telegramBot.sendMessage(
                   chatId,
                   `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
-                  {
-                    parse_mode: 'Markdown',
-                    reply_markup: { inline_keyboard: inlineKeyboard }
-                  }
+                  { parse_mode: 'Markdown' }
                 );
-              });
+              }
             } else {
-              telegramBot.sendMessage(chatId, `No se encontraron recetas que coincidan con "${searchTerm}".`);
+              await telegramBot.sendMessage(chatId, `No se encontraron recetas para "${searchTerm}".`);
             }
-          } catch (error) {
-            telegramBot.sendMessage(chatId, 'Hubo un error al realizar la búsqueda. Intenta nuevamente más tarde.');
-          }
-        } else {
-          telegramBot.sendMessage(chatId, "Por favor, ingresa un término de búsqueda válido.");
-        }
-      });
-    
-    }
-    
-  else if (messageText === "Agregar receta") {
-    if (!isAdmin(msg)) {
-      telegramBot.sendMessage(chatId, "No tienes permisos para agregar recetas.");
-      return;
-    }
-
-    telegramBot.sendMessage(chatId, "¡Genial! Vamos a agregar una nueva receta. ¿Cómo se llama la receta?");
-    telegramBot.once('message', (msg) => {
-      const recetaNombre = msg.text;
-      telegramBot.sendMessage(chatId, `Receta: ${recetaNombre}. Ahora, por favor, envíame los ingredientes (separados por coma, ej: "1 cebolla, 2 dientes de ajo"):`);
-
-      telegramBot.once('message', (msg) => {
-        const ingredientes = msg.text.split(',').map(ing => ing.trim());
-        telegramBot.sendMessage(chatId, 'Perfecto. Ahora, ¿cuáles son las instrucciones para esta receta?');
-
-        telegramBot.once('message', async (msg) => {
-          const instrucciones = msg.text;
-
-          const newReceta = new Receta({
-            nombre: recetaNombre,
-            ingredientes,
-            instrucciones
           });
+          break;
 
-          try {
-            await newReceta.save();
-            telegramBot.sendMessage(chatId, `La receta "${recetaNombre}" se ha guardado correctamente.`);
-          } catch (error) {
-            telegramBot.sendMessage(chatId, 'Hubo un error al guardar la receta. Inténtalo más tarde.');
+        case 'Ver todas las recetas':
+          const allRecetas = await Receta.find();
+          if (allRecetas.length > 0) {
+            for (const receta of allRecetas) {
+              await telegramBot.sendMessage(
+                chatId,
+                `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+                { parse_mode: 'Markdown' }
+              );
+            }
+          } else {
+            await telegramBot.sendMessage(chatId, 'No hay recetas disponibles.');
           }
-        });
-      });
-    });
-  } 
-    
-    else if (messageText.includes("pregunta")) {
-      const userQuestion = messageText.replace(/pregunta/i, '').trim();
+          break;
 
-      if (userQuestion) {
-        try {
-          const response = await generateResponse(userQuestion);
-          telegramBot.sendMessage(chatId, response);
+        case 'Ver recetas favoritas':
+          const user = await Usuario.findOne({ userId: message.from.id });
+          if (user && user.favoritos.length > 0) {
+            const favoriteRecetas = await Receta.find({ _id: { $in: user.favoritos } });
+            for (const receta of favoriteRecetas) {
+              await telegramBot.sendMessage(
+                chatId,
+                `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
+                { parse_mode: 'Markdown' }
+              );
+            }
+          } else {
+            await telegramBot.sendMessage(chatId, 'No tienes recetas favoritas guardadas.');
+          }
+          break;
 
-          try {
+        case 'Añadir Receta':
+          if (!isAdmin(message)) {
+            await telegramBot.sendMessage(chatId, 'No tienes permisos para agregar recetas.');
+            return;
+          }
+  
+            await telegramBot.sendMessage(chatId, '¿Cómo se llama la receta?');
+            telegramBot.once('message', async (msg) => {
+              const nombre = msg.text.trim();
+              await telegramBot.sendMessage(chatId, '¿Cuáles son los ingredientes? (Separados por comas)');
+              telegramBot.once('message', async (msg) => {
+                const ingredientes = msg.text.split(',').map(i => i.trim());
+                await telegramBot.sendMessage(chatId, 'Escribe las instrucciones:');
+                telegramBot.once('message', async (msg) => {
+                  const instrucciones = msg.text.trim();
+                  const newReceta = new Receta({ nombre, ingredientes, instrucciones });
+  
+                  try {
+                    await newReceta.save();
+                    await telegramBot.sendMessage(chatId, `Receta "${nombre}" guardada correctamente.`);
+                  } catch (error) {
+                    console.error('Error al guardar receta:', error);
+                    await telegramBot.sendMessage(chatId, 'Error al guardar la receta.');
+                  }
+                });
+              });
+            });
+          break;
+
+        case 'Preguntar sobre Cocina':
+          await telegramBot.sendMessage(chatId, 'Escribe tu pregunta sobre cocina:');
+          telegramBot.once('message', async (msg) => {
+            const userQuestion = msg.text.trim();
+            const response = await generateResponse(userQuestion);
+
+            await telegramBot.sendMessage(chatId, response);
+
             const newPreguntaFrecuente = new PreguntaFrecuente({
               pregunta: userQuestion,
               respuesta: response,
             });
-            await newPreguntaFrecuente.save();
-          } catch (dbError) {
-            console.error('Error al guardar pregunta frecuente:', dbError);
-          }
 
-          sendFeedback(chatId);
-        } catch (error) {
-          telegramBot.sendMessage(chatId, 'Lo siento, ocurrió un error al consultar con Cohere. Intenta nuevamente más tarde.');
-        }
-      } else {
-        telegramBot.sendMessage(chatId, "Por favor, haz una pregunta sobre cocina después de la palabra 'pregunta'.");
-      }
-    }
-    else if (messageText === "Ver recetas favoritas") {
-      const user = await Usuario.findOne({ userId: msg.from.id });
-      if (user && user.favoritos.length > 0) {
-        const recetas = await Receta.find({ '_id': { $in: user.favoritos } });
-  
-        for (const receta of recetas) {
-          // Crear botones para cada receta
-          const inlineKeyboard = [
-            [
-              {
-                text: "Eliminar de Favoritos",
-                callback_data: `remove_fav_${receta._id}`,
-              }
-            ]
-          ];
-  
-          // Enviar un mensaje para cada receta favorita
-          await telegramBot.sendMessage(
-            chatId,
-            `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
-            {
-              parse_mode: 'Markdown',
-              reply_markup: { inline_keyboard: inlineKeyboard }
+            try {
+              await newPreguntaFrecuente.save();
+            } catch (error) {
+              console.error('Error al guardar pregunta frecuente:', error);
             }
-          );
-        }
-      } else {
-        telegramBot.sendMessage(chatId, "No tienes recetas favoritas guardadas.");
-      }
-    }
-    else if (messageText === "Ver todas las recetas") {
-      const recetas = await Receta.find();
-      if (recetas.length > 0) {
-        recetas.forEach(async (receta) => {
-          const inlineKeyboard = [
-            [
-              {
-                text: "Añadir a Favoritos",
-                callback_data: `add_fav_${receta._id}`,
-              }
-            ]
-          ];
-  
-          await telegramBot.sendMessage(
-            chatId,
-            `*${receta.nombre}*\nIngredientes: ${receta.ingredientes.join(', ')}\nInstrucciones: ${receta.instrucciones}`,
-            {
-              parse_mode: 'Markdown',
-              reply_markup: { inline_keyboard: inlineKeyboard }
-            }
-          );
-        });
-      } else {
-        telegramBot.sendMessage(chatId, "No hay recetas disponibles.");
+
+            sendFeedback(chatId);
+          });
+          break;
+
+        default:
+          await telegramBot.sendMessage(chatId, 'No entiendo ese comando. Por favor, selecciona una opción del menú.');
+          break;
       }
     }
 
-    else if (msg.callback_query) {
-      const callbackData = msg.callback_query.data;
-      if (callbackData.startsWith('add_fav_')) {
-        const recetaId = callbackData.split('_')[2];
-        const user = await Usuario.findOne({ userId: msg.from.id });
+    if (callback_query) {
+      const { data, message } = callback_query;
+      const chatId = message.chat?.id;
+
+      if (data.startsWith('add_fav_')) {
+        const recetaId = data.split('_')[2];
+        const user = await Usuario.findOne({ userId: callback_query.from.id });
         if (user) {
           user.favoritos.push(recetaId);
           await user.save();
-          telegramBot.answerCallbackQuery(msg.callback_query.id, 'Receta añadida a favoritos');
-        }
-      } else if (callbackData.startsWith('remove_fav_')) {
-        const recetaId = callbackData.split('_')[2];
-        const user = await Usuario.findOne({ userId: msg.from.id });
-        if (user) {
-          user.favoritos.pull(recetaId);
-          await user.save();
-          telegramBot.answerCallbackQuery(msg.callback_query.id, 'Receta eliminada de favoritos');
+          await telegramBot.answerCallbackQuery(callback_query.id, 'Receta añadida a favoritos.');
         }
       }
     }
 
-    return res.status(200).send('OK'); 
-  } else {
-    return res.status(405).send('Method Not Allowed'); 
+    return res.status(200).send('OK');
   }
+
+  return res.status(405).send('Method Not Allowed');
 }
 
 async function setWebhook() {
   const webhookUrl = `${process.env.VERCEL_URL}/api/bot`;
   try {
     await telegramBot.setWebHook(webhookUrl);
+    console.log('Webhook configurado correctamente:', webhookUrl);
   } catch (error) {
-    console.error("Error al establecer el webhook:", error);
+    console.error('Error al configurar el webhook:', error);
   }
 }
 
